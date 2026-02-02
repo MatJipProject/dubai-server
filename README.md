@@ -49,26 +49,23 @@ dubai-server
 
 > **🚨 주의사항:** 모든 기능 개발(`feature`)은 **`develop`** 브랜치에서 파생되어야 하며, PR 또한 **`develop`** 으로 보내야 합니다.
 
-2. Issue 등록 방법
+### 2. Issue 등록 방법
 작업을 시작하기 전, 반드시 Issue를 먼저 등록하여 팀원들에게 알립니다.
 
-1. 상단 Issues 탭 클릭 -> New issue 버튼 클릭.
-
-2. 제목은 명확하게 작성합니다. (예: [FE] 로그인 페이지 UI 구현, [BE] 리뷰 작성 API 개발)
-
+1. 상단 **Issues** 탭 클릭 -> **New issue** 버튼 클릭.
+2. 제목은 명확하게 작성합니다. (예: `[FE] 로그인 페이지 UI 구현`, `[BE] 리뷰 작성 API 개발`)
 3. 내용에는 **할 일(To-do)**과 참고 자료 등을 적습니다.
+4. 작성이 끝나면 우측 **Assignees**에 본인을 태그합니다.
 
-4. 작성이 끝나면 우측 Assignees에 본인을 태그합니다.
-
-3. 작업 및 PR(Pull Request) 순서
-1. Issue 생성: 위 가이드에 따라 할 일을 등록합니다.
-2. Branch 생성: git checkout -b feature/기능명
-3. 작업 및 Commit:
-- 커밋 메시지 규칙을 준수해주세요. (아래 참조)
-4. Push: git push origin feature/기능명 (본인의 Fork 저장소로 보냄)
-5. PR 생성:
-- GitHub 저장소에서 Compare & pull request 버튼 클릭.
-- base: develop <- compare: feature/기능명 확인.
-- 제목에 관련 Issue 번호를 적어주면 자동 연결됩니다. (예: Feat: 로그인 기능 구현 (#3))
-- 내용 작성 후 Create pull request.
-6. Code Review: 팀원들의 리뷰를 받고, 승인되면 Merge 됩니다.
+### 3. 작업 및 PR(Pull Request) 순서
+1. **Issue 생성**: 위 가이드에 따라 할 일을 등록합니다.
+2. **Branch 생성**: `git checkout -b feature/기능명`
+3. **작업 및 Commit**:
+   - 커밋 메시지 규칙을 준수해주세요. (아래 참조)
+4. **Push**: `git push origin feature/기능명` (본인의 Fork 저장소로 보냄)
+5. **PR 생성**:
+   - GitHub 저장소에서 **Compare & pull request** 버튼 클릭.
+   - `base: develop` <- `compare: feature/기능명` 확인.
+   - 제목에 관련 Issue 번호를 적어주면 자동 연결됩니다. (예: `Feat: 로그인 기능 구현 (#3)`)
+   - 내용 작성 후 **Create pull request**.
+6. **Code Review**: 팀원들의 리뷰를 받고, 승인되면 Merge 됩니다.
