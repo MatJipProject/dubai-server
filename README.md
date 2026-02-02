@@ -68,7 +68,7 @@ dubai-server
 4. Push: git push origin feature/기능명 (본인의 Fork 저장소로 보냄)
 5. PR 생성:
 - GitHub 저장소에서 Compare & pull request 버튼 클릭.
-- base: main <- compare: feature/기능명 확인.
+- base: develop <- compare: feature/기능명 확인.
 - 제목에 관련 Issue 번호를 적어주면 자동 연결됩니다. (예: Feat: 로그인 기능 구현 (#3))
 - 내용 작성 후 Create pull request.
 6. Code Review: 팀원들의 리뷰를 받고, 승인되면 Merge 됩니다.
