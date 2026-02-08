@@ -15,7 +15,6 @@ class Settings(BaseSettings):
     NAVER_SEARCH_URL: str = "https://openapi.naver.com/v1/search/local"
     NAVER_CLIENT_ID: str = os.getenv("NAVER_CLIENT_ID")
     NAVER_CLIENT_SECRET: str = os.getenv("NAVER_CLIENT_SECRET")
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 14
     DB_USER: str = os.getenv("DB_USER")
     DB_PASSWORD: str = os.getenv("DB_PASSWORD")
@@ -25,6 +24,8 @@ class Settings(BaseSettings):
     DATABASE_URL: str = (
         f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DBNAME}?sslmode=require"
     )
-
+    SECRET_KEY: str = "super_secret_key_change_this_in_production"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
 settings = Settings()
