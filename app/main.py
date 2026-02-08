@@ -5,7 +5,7 @@ from pathlib import Path
 import uvicorn
 
 from app.restaurants.router import restaurants_controller
-
+from app.users.router import auth_controller
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -13,6 +13,7 @@ app = FastAPI(title="맛집 API 서버", version="0.0.1")
 app.include_router(
     restaurants_controller.router, prefix="/api/v1/restaurants", tags=["restaurants"]
 )
+app.include_router(auth_controller.router, prefix="/api/v1/auth", tags=["auth"])
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
