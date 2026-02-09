@@ -21,6 +21,8 @@ class User(Base):
     email = Column(String, unique=True, index=True)  # 로그인 이메일 주소
     password_hash = Column(String(555))  # 암호화된 비밀번호
     nickname = Column(String(30))  # 유저 닉네임
+    birth = Column(String(10), nullable=True)  # 생년월일
+    phone = Column(String(20), nullable=True)
     is_active = Column(Boolean, default=True)  # 계정 활성화 여부
     created_at = Column(DateTime, default=func.now())  # 작성일
 

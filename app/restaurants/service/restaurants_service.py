@@ -2,7 +2,7 @@ import httpx
 from fastapi import HTTPException
 from app.config.config import settings  # .env에서 키 가져오기
 from sqlalchemy.orm import Session
-from app.restaurants.schema import restaurants_schemas as schemas
+from app.restaurants.schemas import restaurants_schemas as schemas
 from app.restaurants.crud import restaurants_crud as crud
 import hashlib
 
@@ -159,6 +159,38 @@ def get_nearby_restaurants(db: Session, lat: float, lng: float, radius: int):
         result_list.append(restaurant_data)
 
     return result_list
+
+
+def get_restaurant_detail(
+    db: Session, restaurant_id: int
+) -> schemas.RestaurantDetailResponse:
+    """
+    식당 상세 정보 조회 (북마크 제외)
+    """
+    # 1. 기본 정보 및 통계
+    result = crud.get_restaurant_with_stats(db, restaurant_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="식당을 찾을 수 없습니다.")
+
+    restaurant, avg_rating, review_count = result
+
+    # 2. 대표 이미지
+    images = crud.get_restaurant_images(db, restaurant_id, limit=5)
+
+    # 3. 응답 반환
+    return schemas.RestaurantDetailResponse(
+        id=restaurant.id,
+        unique_hash=restaurant.unique_hash,
+        name=restaurant.name,
+        category=restaurant.category,
+        address=restaurant.address,
+        road_address=restaurant.road_address,
+        latitude=restaurant.latitude,
+        longitude=restaurant.longitude,
+        rating=round(avg_rating, 1),
+        review_count=review_count,
+        images=images,
+    )
 
 
 def _generate_hash(name: str, address: str) -> str:

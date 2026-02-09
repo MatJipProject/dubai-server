@@ -2,7 +2,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from app.core.database import get_db
-from app.restaurants.schema import restaurants_schemas as schemas
+from app.restaurants.schemas import restaurants_schemas as schemas
 from app.restaurants.service import restaurants_service as service
 
 router = APIRouter()
@@ -42,3 +42,16 @@ def get_nearby_restaurants(
     내 주변 맛집 리스트 조회 (거리순, 별점 포함)
     """
     return service.get_nearby_restaurants(db, lat=lat, lng=lng, radius=radius)
+
+
+@router.get(
+    "/restaurants/{restaurant_id}", response_model=schemas.RestaurantDetailResponse
+)
+def get_restaurant_detail(
+    restaurant_id: int,
+    db: Session = Depends(get_db),
+):
+    """
+    식당 상세 정보를 조회합니다.
+    """
+    return service.get_restaurant_detail(db, restaurant_id)

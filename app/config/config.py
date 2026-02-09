@@ -27,5 +27,9 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "super_secret_key_change_this_in_production"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
+    SUPABASE_KEY: str = os.getenv("SUPABASE_KEY", "")
+    SUPABASE_BUCKET: str = os.getenv("SUPABASE_BUCKET", "reviews")
+
 
 settings = Settings()
