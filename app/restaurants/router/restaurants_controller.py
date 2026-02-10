@@ -11,24 +11,8 @@ router = APIRouter()
 @router.get("/search")
 async def search_restaurants(query: str):
     # 프론트엔드는 이 주소(GET /api/v1/restaurants/search?query=강남)를 호출
-    result = await service.search_restaurants_by_category_only(query)
+    result = await service.search_restaurants_kakao(query)
     return result
-
-
-@router.post("/", response_model=schemas.RestaurantResponse)
-def register_restaurant(
-    item: schemas.RestaurantCreate,
-    db: Session = Depends(get_db),
-):
-    """
-    네이버 검색 결과(Item)를 받아서 맛집으로 등록합니다.
-    """
-    try:
-        restaurant = service.create_restaurant(db, item)
-        return restaurant
-    except Exception as e:
-        # 로그 남기기 등을 추천
-        raise HTTPException(status_code=400, detail=f"맛집 등록 실패: {str(e)}")
 
 
 @router.get("/nearby", response_model=List[schemas.RestaurantNearbyResponse])
@@ -44,14 +28,12 @@ def get_nearby_restaurants(
     return service.get_nearby_restaurants(db, lat=lat, lng=lng, radius=radius)
 
 
-@router.get(
-    "/restaurants/{restaurant_id}", response_model=schemas.RestaurantDetailResponse
-)
+@router.get("/{restaurant_id}", response_model=schemas.RestaurantDetailResponse)
 def get_restaurant_detail(
     restaurant_id: int,
     db: Session = Depends(get_db),
 ):
     """
-    식당 상세 정보를 조회합니다.
+    식당 정보 + 최신 이미지 5장 + 맛보기 리뷰 3개를 한 번에 내려줍니다.
     """
     return service.get_restaurant_detail(db, restaurant_id)

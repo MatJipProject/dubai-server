@@ -50,3 +50,22 @@ async def upload_image_to_supabase(
         raise HTTPException(
             status_code=500, detail="이미지 업로드 중 오류가 발생했습니다."
         )
+
+
+async def delete_image_from_supabase(image_url: str, bucket_name: str = "reviews"):
+    """
+    업로드된 이미지 URL을 받아 Supabase에서 삭제합니다. (롤백용)
+    """
+    try:
+        if bucket_name not in image_url:
+            return  # 다른 버킷이거나 잘못된 URL이면 무시
+
+        file_path = image_url.split(f"/{bucket_name}/")[-1]
+
+        # 2. Supabase 삭제 요청 (리스트로 경로 전달)
+        supabase.storage.from_(bucket_name).remove([file_path])
+        print(f"🗑️ 롤백: 이미지 삭제 완료 ({file_path})")
+
+    except Exception as e:
+        # 삭제 실패는 로그만 남기고 넘어감 (메인 로직을 방해하면 안 됨)
+        print(f"⚠️ 이미지 삭제 실패: {e}")

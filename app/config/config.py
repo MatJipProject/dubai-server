@@ -11,10 +11,9 @@ load_dotenv(os.path.join(BASE_DIR, ".env"))
 class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     ENVIRONMENT: str = os.environ.get("ENV", "DEV")
-    # SITE_DOMAIN: str = ""
-    NAVER_SEARCH_URL: str = "https://openapi.naver.com/v1/search/local"
-    NAVER_CLIENT_ID: str = os.getenv("NAVER_CLIENT_ID")
-    NAVER_CLIENT_SECRET: str = os.getenv("NAVER_CLIENT_SECRET")
+    SITE_DOMAIN: str = "baebulook.site"
+    KAKAO_SEARCH_URL: str = "https://dapi.kakao.com/v2/local/search/keyword"
+    KAKAO_REST_API_KEY: str = os.getenv("KAKAO_REST_API_KEY")
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 14
     DB_USER: str = os.getenv("DB_USER")
     DB_PASSWORD: str = os.getenv("DB_PASSWORD")
@@ -24,8 +23,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = (
         f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DBNAME}?sslmode=require"
     )
-    SECRET_KEY: str = "super_secret_key_change_this_in_production"
-    ALGORITHM: str = "HS256"
+    SECRET_KEY: str = os.getenv("SECRET_KEY")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
     SUPABASE_KEY: str = os.getenv("SUPABASE_KEY", "")
