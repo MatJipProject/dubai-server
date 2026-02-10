@@ -4,44 +4,44 @@ from app.models.models import Restaurant, Review
 from geoalchemy2.elements import WKTElement
 from sqlalchemy import func, cast  # cast 추가
 from geoalchemy2 import Geography  # Geography 추가
+from sqlalchemy import desc
 
 
-def get_restaurant_by_hash(db: Session, unique_hash: str):
-    """해시값으로 이미 등록된 식당인지 확인"""
-    return db.query(Restaurant).filter(Restaurant.unique_hash == unique_hash).first()
+def get_restaurant_by_kakao_id(db: Session, kakao_place_id: str):
+    return (
+        db.query(Restaurant).filter(Restaurant.kakao_place_id == kakao_place_id).first()
+    )
 
 
 def create_restaurant(
     db: Session,
+    kakao_place_id: str,
     name: str,
     category: str,
     address: str,
     road_address: str,
+    phone: str,
+    place_url: str,
     lat: float,
     lng: float,
-    unique_hash: str,
+    location_wkt: str,
 ):
-    """DB에 식당 정보 저장"""
-
-    # PostGIS 좌표 객체 생성 (WKT: Well-Known Text 형식)
-    # POINT(경도 위도) 순서 중요!
-    location_point = WKTElement(f"POINT({lng} {lat})", srid=4326)
-
-    db_obj = Restaurant(
-        unique_hash=unique_hash,
+    db_item = Restaurant(
+        kakao_place_id=kakao_place_id,
         name=name,
         category=category,
         address=address,
         road_address=road_address,
+        phone=phone,
+        place_url=place_url,
         latitude=lat,
         longitude=lng,
-        location=location_point,  # PostGIS 컬럼
+        location=WKTElement(location_wkt, srid=4326),
     )
-
-    db.add(db_obj)
+    db.add(db_item)
     db.commit()
-    db.refresh(db_obj)
-    return db_obj
+    db.refresh(db_item)
+    return db_item
 
 
 def get_nearby_restaurants_query(
@@ -77,3 +77,92 @@ def get_nearby_restaurants_query(
         .limit(limit)
         .all()
     )
+
+
+def get_restaurant_with_stats(db: Session, restaurant_id: int):
+    return (
+        db.query(
+            Restaurant,
+            # 1. 평균 별점: 리뷰가 없으면 NULL이 나오므로 0.0으로 변환
+            func.coalesce(func.avg(Review.rating), 0.0).label("avg_rating"),
+            # 2. 리뷰 개수: Review.id를 카운트
+            func.count(Review.id).label("review_count"),
+        )
+        .outerjoin(
+            # 식당에 리뷰가 하나도 없어도 식당 정보는 나와야 하므로 outerjoin 사용
+            Review,
+            Restaurant.id == Review.restaurant_id,
+        )
+        .filter(Restaurant.id == restaurant_id)
+        .group_by(
+            # 집계 함수(avg, count)를 제외한 나머지 컬럼으로 그룹화
+            Restaurant.id
+        )
+        .first()
+    )
+
+
+def get_restaurant_images(db: Session, restaurant_id: int, limit: int) -> list[str]:
+    """
+    특정 식당의 리뷰들 중에서 이미지가 있는 것들만 최신순으로 가져와서
+    URL 리스트로 평탄화(Flatten)하여 반환합니다.
+    """
+    # 1. 이미지가 포함된 리뷰만 최신순으로 조회
+    # (사진 1장에 리뷰 1개가 아니라, 리뷰 1개에 사진이 여러 장일 수 있으므로 넉넉하게 limit * 2만큼 조회)
+    reviews = (
+        db.query(Review)
+        .filter(
+            Review.restaurant_id == restaurant_id,
+            Review.images.isnot(None),  # NULL 제외
+        )
+        .order_by(desc(Review.created_at))
+        .limit(limit * 2)
+        .all()
+    )
+
+    collected_images = []
+
+    for review in reviews:
+        # review.images는 ["url1", "url2"] 형태의 리스트라고 가정
+        if review.images:
+            # 리스트를 풀어서 하나씩 추가 (extend)
+            collected_images.extend(review.images)
+
+        # 목표 개수(limit)를 채우면 즉시 중단 (성능 최적화)
+        if len(collected_images) >= limit:
+            break
+
+    # 정확히 limit 개수만큼만 잘라서 반환
+    return collected_images[:limit]
+
+
+def get_latest_images_for_restaurants(
+    db: Session, restaurant_ids: list[int], limit_per_restaurant: int = 2
+):
+    """
+    [성능 최적화] 각 식당별로 이미지가 있는 최신 리뷰를 딱 N개씩만 가져옵니다.
+    """
+    if not restaurant_ids:
+        return []
+
+    # 1. Subquery: 각 식당별로(partition_by) 최신순 번호(rn)를 매김
+    subquery = (
+        db.query(
+            Review.restaurant_id,
+            Review.images,
+            func.row_number()
+            .over(partition_by=Review.restaurant_id, order_by=desc(Review.created_at))
+            .label("rn"),
+        )
+        .filter(Review.restaurant_id.in_(restaurant_ids), Review.images.isnot(None))
+        .subquery()
+    )
+
+    # 2. Main Query: 번호(rn)가 limit_per_restaurant 이하인 것만 필터링
+    results = (
+        db.query(subquery.c.restaurant_id, subquery.c.images)
+        .filter(subquery.c.rn <= limit_per_restaurant)
+        .all()
+    )
+
+    return results
