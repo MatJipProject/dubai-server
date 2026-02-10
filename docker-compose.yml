@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  # 1. 우리 FastAPI 서버
+  backend:
+    container_name: baebulook-app
+    build: .
+    restart: always
+    env_file:
+      - .env
+    expose:
+      - "8000"  # 외부에는 노출 안 하고, 같은 도커 네트워크 안의 Nginx에게만 8000번 열어줌
+
+  # 2. Nginx + SSL 관리자 (초보자 강추)
+  nginx-proxy-manager:
+    image: 'jc21/nginx-proxy-manager:latest'
+    container_name: nginx-proxy-manager
+    restart: unless-stopped
+    ports:
+      - '80:80'      # 웹 접속
+      - '443:443'    # HTTPS 접속
+      - '81:81'      # 관리자 페이지 (나중에 보안 위해 닫거나 비번 걸어야 함)
+    volumes:
+      - ./data:/data
+      - ./letsencrypt:/etc/letsencrypt
+    depends_on:
+      - backend
