@@ -4,7 +4,6 @@ services:
   # 1. 우리 FastAPI 서버
   backend:
     container_name: baebulook-app
-    # build: .  <-- 이 줄을 지우거나 #으로 주석 처리하세요!
     image: jeongtaekim97/matzip-backend:latest  # <-- 방금 올린 이미지 주소 입력
     restart: always
     env_file:
