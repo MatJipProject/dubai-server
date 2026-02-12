@@ -30,24 +30,100 @@ dubai-server
 
 <br/>
 
+
 ## 🤝 Collaboration Guide (협업 가이드)
 우리는 Fork & Pull Request 방식을 사용하여 협업합니다.
 
-1. Branch Strategy (브랜치 전략)
+### 0. 로컬 개발 워크플로우 (작업 시작하기)
+
+#### **📌 최초 설정 (한 번만 하면 됨)**
+```bash
+# 1. Fork한 저장소를 로컬에 클론
+git clone https://github.com/본인계정/저장소명.git
+cd 저장소명
+
+# 2. 원본 저장소를 upstream으로 추가
+git remote add upstream https://github.com/원본계정/저장소명.git
+
+# 3. 확인
+git remote -v
+# origin    https://github.com/본인계정/저장소명.git (fetch)
+# origin    https://github.com/본인계정/저장소명.git (push)
+# upstream  https://github.com/원본계정/저장소명.git (fetch)
+# upstream  https://github.com/원본계정/저장소명.git (push)
+```
+
+#### **🔄 매 작업 시작 전 (필수!)**
+```bash
+# 1. 현재 브랜치 확인
+git branch
+# * develop (현재 위치)
+
+# 2. develop 브랜치로 이동 (다른 브랜치에 있다면)
+git checkout develop
+
+# 3. 원본 저장소의 최신 코드 가져오기
+git pull upstream develop
+
+# 4. 본인 Fork 저장소도 업데이트 (선택사항이지만 권장)
+git push origin develop
+```
+
+#### **💻 작업 진행**
+```bash
+# 1. 새로운 기능 브랜치 생성 및 이동
+git checkout -b feature/기능명
+# 예: git checkout -b feature/login-api
+
+# 2. 코드 작성 및 수정
+# (여기서 실제 개발 작업 진행)
+
+# 3. 변경사항 확인
+git status
+
+# 4. 파일 추가
+git add .
+# 또는 특정 파일만: git add 파일명
+
+# 5. 커밋 (커밋 메시지 규칙 준수)
+git commit -m "Feat: 로그인 API 구현 (#이슈번호)"
+
+# 6. 본인 Fork 저장소에 푸시
+git push origin feature/기능명
+```
+
+#### **📤 PR(Pull Request) 생성**
+```bash
+# 1. GitHub 웹사이트에서 본인의 Fork 저장소로 이동
+# 2. "Compare & pull request" 버튼이 자동으로 나타남
+# 3. base: develop ← compare: feature/기능명 확인
+# 4. PR 제목과 설명 작성 후 "Create pull request" 클릭
+```
+
+#### **⚠️ 주의사항**
+- 작업 시작 전 **항상** `git pull upstream develop`으로 최신 코드를 받아오세요!
+- `main` 브랜치에는 절대 직접 푸시하지 마세요.
+- 커밋하기 전 `git status`로 변경사항을 확인하세요.
+
+---
+
+### 1. Branch Strategy (브랜치 전략)
 절대로 main 브랜치에 직접 커밋하지 않습니다. 반드시 작업 브랜치를 생성하세요.
 
-### **1. 주요 브랜치 (Upstream 기준)**
+#### **1-1. 주요 브랜치 (Upstream 기준)**
 | 브랜치명 | 설명 | 비고 |
 | :-- | :-- | :-- |
 | **`main`** | 배포 가능한 **최종본** (Production) | 🚀 절대 직접 푸시 불가 |
 | **`release`** | 배포 전 **최종 테스트** 및 버전 준비 | QA 진행, 버그 수정 |
 | **`develop`** | 다음 버전을 위한 **개발 진행 중** | 기본 타겟 브랜치 (Default) |
 
-### **2. 보조 브랜치 (작업용)**
-* **`feature/기능명`**: 새로운 기능 개발 (예: `feature/login-api`)
-* **`fix/이슈명`**: 버그 수정 (예: `fix/typo-error`)
+#### **1-2. 보조 브랜치 (작업용)**
+- **`feature/기능명`**: 새로운 기능 개발 (예: `feature/login-api`)
+- **`fix/이슈명`**: 버그 수정 (예: `fix/typo-error`)
 
 > **🚨 주의사항:** 모든 기능 개발(`feature`)은 **`develop`** 브랜치에서 파생되어야 하며, PR 또한 **`develop`** 으로 보내야 합니다.
+
+---
 
 ### 2. Issue 등록 방법
 작업을 시작하기 전, 반드시 Issue를 먼저 등록하여 팀원들에게 알립니다.
@@ -57,15 +133,46 @@ dubai-server
 3. 내용에는 **할 일(To-do)**과 참고 자료 등을 적습니다.
 4. 작성이 끝나면 우측 **Assignees**에 본인을 태그합니다.
 
+---
+
 ### 3. 작업 및 PR(Pull Request) 순서
 1. **Issue 생성**: 위 가이드에 따라 할 일을 등록합니다.
-2. **Branch 생성**: `git checkout -b feature/기능명`
-3. **작업 및 Commit**:
+2. **최신 코드 동기화**: `git pull upstream develop`
+3. **Branch 생성**: `git checkout -b feature/기능명`
+4. **작업 및 Commit**:
    - 커밋 메시지 규칙을 준수해주세요. (아래 참조)
-4. **Push**: `git push origin feature/기능명` (본인의 Fork 저장소로 보냄)
-5. **PR 생성**:
+5. **Push**: `git push origin feature/기능명` (본인의 Fork 저장소로 보냄)
+6. **PR 생성**:
    - GitHub 저장소에서 **Compare & pull request** 버튼 클릭.
    - `base: develop` <- `compare: feature/기능명` 확인.
    - 제목에 관련 Issue 번호를 적어주면 자동 연결됩니다. (예: `Feat: 로그인 기능 구현 (#3)`)
    - 내용 작성 후 **Create pull request**.
-6. **Code Review**: 팀원들의 리뷰를 받고, 승인되면 Merge 됩니다.
+7. **Code Review**: 팀원들의 리뷰를 받고, 승인되면 Merge 됩니다.
+
+<br/>
+
+## 📝 Commit Message Convention (커밋 메시지 규칙)
+
+```
+타입: 간단한 설명 (#이슈번호)
+
+예시:
+- Feat: 로그인 API 구현 (#12)
+- Fix: 리뷰 작성 버그 수정 (#24)
+- Docs: README 업데이트
+```
+
+#### **타입(Type) 종류**
+- **Feat**: 새로운 기능 추가
+- **Fix**: 버그 수정
+- **Docs**: 문서 수정
+- **Style**: 코드 포맷팅, 세미콜론 누락 등 (동작 변경 없음)
+- **Refactor**: 코드 리팩토링
+- **Test**: 테스트 코드 추가/수정
+- **Chore**: 빌드 업무, 패키지 매니저 설정 등
+
+<br/>
+
+---
+
+**Happy Coding! 🚀**

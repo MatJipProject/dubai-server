@@ -1,0 +1,53 @@
+name: Deploy to Lightsail
+
+on:
+  push:
+    branches: [ "main" ]  # main 브랜치에 푸시될 때만 실행
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest  # GitHub의 리눅스 컴퓨터 사용
+
+    steps:
+    # 1. 코드 가져오기
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    # 2. Docker Hub 로그인
+    - name: Login to Docker Hub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+
+    # 3. 이미지 빌드 & 업로드 (Build & Push)
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        push: true
+        tags: ${{ secrets.DOCKER_USERNAME }}/matzip-backend:latest
+        # 모든 환경(서버)에서 돌아가도록 플랫폼 지정
+        platforms: linux/amd64
+
+    # 4. Lightsail 서버에 접속해서 배포 명령 실행
+    - name: Deploy to Lightsail
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.HOST_IP }}
+        username: ubuntu
+        key: ${{ secrets.SSH_KEY }}
+        script: |
+          cd /home/ubuntu/dubai-server  # 본인 프로젝트 폴더명으로 수정!
+          
+          # 혹시 docker-compose.yml이 바뀌었을 수도 있으니 코드 갱신
+          git pull origin main
+          
+          # 최신 이미지 다운로드 (빌드 X, 다운로드 O)
+          docker compose pull backend
+          
+          # 백엔드 컨테이너만 재시작 (Nginx는 건들지 않음 -> 무중단에 가까움)
+          docker compose up -d backend
+          
+          # 공간 확보를 위해 안 쓰는 구버전 이미지 삭제
+          docker image prune -f
