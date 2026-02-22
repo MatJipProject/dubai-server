@@ -106,3 +106,35 @@ class RestaurantNearbyResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# [최신 등록순 조회] 최근 등록된 맛집 목록용
+class RestaurantListResponse(BaseModel):
+    id: int
+    name: str
+    category: Optional[str] = None
+    
+    # [주소 정보]
+    road_address: Optional[str] = None
+    address: Optional[str] = None
+    
+    # [상세 정보]
+    phone: Optional[str] = None
+    place_url: Optional[str] = None
+    
+    # [좌표]
+    latitude: float
+    longitude: float
+    
+    # [통계]
+    rating: float = 0.0
+    review_count: int = 0
+    
+    # [등록일]
+    created_at: Optional[str] = None  # ISO 형식 문자열 (optional)
+    
+    # [이미지 썸네일]
+    thumbnail: Optional[str] = None
+
+    class Config:
+        from_attributes = True

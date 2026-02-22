@@ -166,3 +166,79 @@ def get_latest_images_for_restaurants(
     )
 
     return results
+
+
+def get_restaurants_by_latest(
+    db: Session, skip: int = 0, limit: int = 20, category: str = None
+):
+    """
+    최근 등록된 순으로 식당 목록을 조회합니다.
+    평점과 리뷰 수도 함께 반환합니다.
+    카테고리 필터링 옵션 추가.
+    """
+    query = (
+        db.query(
+            Restaurant,
+            func.coalesce(func.avg(Review.rating), 0.0).label("avg_rating"),
+            func.count(Review.id).label("review_count"),
+        )
+        .outerjoin(Review, Restaurant.id == Review.restaurant_id)
+    )
+    
+    # 카테고리 필터링 (카카오맵 카테고리 기준)
+    if category:
+        # 카테고리가 포함된 식당 필터링 (부분 일치)
+        query = query.filter(Restaurant.category.ilike(f"%{category}%"))
+    
+    return (
+        query
+        .group_by(Restaurant.id)
+        .order_by(desc(Restaurant.created_at))  # 최신 등록순
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+
+def get_restaurant_thumbnail(db: Session, restaurant_id: int) -> str:
+    """
+    특정 식당의 첫 번째 이미지를 썸네일로 반환합니다.
+    """
+    review = (
+        db.query(Review)
+        .filter(
+            Review.restaurant_id == restaurant_id,
+            Review.images.isnot(None),
+        )
+        .order_by(desc(Review.created_at))
+        .first()
+    )
+    
+    if review and review.images and len(review.images) > 0:
+        return review.images[0]
+    return None
+
+
+def get_available_categories(db: Session):
+    """
+    DB에 등록된 식당들의 카테고리 목록을 조회합니다.
+    카카오맵 기준 카테고리들을 중복 제거하여 반환합니다.
+    """
+    categories = (
+        db.query(Restaurant.category)
+        .filter(Restaurant.category.isnot(None))
+        .distinct()
+        .all()
+    )
+    
+    # 카테고리를 파싱하여 주요 카테고리만 추출
+    category_set = set()
+    for (category,) in categories:
+        if category:
+            # "음식점 > 한식 > 육류,고기" -> ["음식점", "한식", "육류,고기"]
+            parts = [part.strip() for part in category.split(">")]
+            for part in parts:
+                if part and part not in ["음식점", "식당"]:  # 일반적인 단어 제외
+                    category_set.add(part)
+    
+    return sorted(list(category_set))

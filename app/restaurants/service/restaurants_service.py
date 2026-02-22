@@ -243,3 +243,62 @@ def get_restaurant_detail(
         "images": images,
         "pre_reviews": recent_reviews,  # 맛보기 리뷰 리스트
     }
+
+
+def get_restaurants_latest(
+    db: Session, skip: int = 0, limit: int = 20, category: str = None
+) -> list[schemas.RestaurantListResponse]:
+    """
+    최근 등록된 순으로 식당 목록을 조회합니다.
+    카테고리 필터링 옵션 추가.
+    """
+    # 1. 최신 등록순으로 식당 조회 (평점, 리뷰수 포함)
+    rows = crud.get_restaurants_by_latest(db, skip, limit, category)
+    
+    if not rows:
+        return []
+    
+    # 2. 식당 ID 추출하여 썸네일 이미지 조회
+    restaurant_ids = [row[0].id for row in rows]
+    
+    # 3. 각 식당별 썸네일 이미지 조회 (성능 최적화를 위해 bulk 조회)
+    thumbnail_data = crud.get_latest_images_for_restaurants(db, restaurant_ids, 1)
+    thumbnail_map = {}
+    for r_id, images in thumbnail_data:
+        if images and len(images) > 0:
+            thumbnail_map[r_id] = images[0]
+    
+    # 4. 응답 데이터 조립
+    result_list = []
+    for row in rows:
+        restaurant, avg_rating, review_count = row
+        
+        # created_at 안전 처리
+        created_at_str = None
+        if restaurant.created_at:
+            created_at_str = restaurant.created_at.isoformat()
+        
+        result_list.append({
+            "id": restaurant.id,
+            "name": restaurant.name,
+            "category": restaurant.category,
+            "road_address": restaurant.road_address,
+            "address": restaurant.address,
+            "phone": restaurant.phone,
+            "place_url": restaurant.place_url,
+            "latitude": restaurant.latitude,
+            "longitude": restaurant.longitude,
+            "rating": round(avg_rating, 1),
+            "review_count": review_count,
+            "created_at": created_at_str,
+            "thumbnail": thumbnail_map.get(restaurant.id)
+        })
+    
+    return result_list
+
+
+def get_available_categories(db: Session) -> list[str]:
+    """
+    DB에 등록된 식당들의 카테고리 목록을 조회합니다.
+    """
+    return crud.get_available_categories(db)
