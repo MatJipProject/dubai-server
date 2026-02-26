@@ -45,3 +45,25 @@ def get_reviews_by_restaurant(
     db: Session, restaurant_id: int, skip: int = 0, limit: int = 10
 ):
     return crud.get_reviews_by_restaurant(db, restaurant_id, skip, limit)
+
+
+
+async def create_review_only(
+    db: Session,
+    user_id: int,
+    restaurant_id: int,
+    rating: int,
+    content: str,
+    images: List[str],
+):
+    """
+    기존 식당에 리뷰만 작성
+    """
+    return crud.create_review(
+        db=db,
+        user_id=user_id,
+        restaurant_id=restaurant_id,
+        rating=rating,
+        content=content,
+        images=images,
+    )

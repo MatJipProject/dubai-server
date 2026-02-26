@@ -1,53 +1,46 @@
-import json
-from typing import List
-from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
-from fastapi.concurrency import run_in_threadpool
-from pydantic import Json
+from typing import List, Optional
+from fastapi import APIRouter, Depends, UploadFile, File
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.core.storage import delete_image_from_supabase, upload_image_to_supabase
 from app.reviews.schemas import reviews_schemas as schemas
 from app.reviews.service import reviews_service as service
+from app.reviews.dependencies import parse_review_form, parse_review_only_form
 from app.models.models import User
 
 router = APIRouter()
 
 
-from fastapi import APIRouter, Depends, Form, File, UploadFile
-from pydantic import Json
-from typing import List
-from sqlalchemy.orm import Session
-
-# ... import 생략 ...
-
-
 @router.post("/register", response_model=schemas.ReviewResponse)
 async def create_review_and_restaurant(
-    request_data: str = Form(..., description="식당 및 리뷰 정보 JSON 문자열"),
-    files: List[UploadFile] = File(default=[]),
+    parsed_data: schemas.ReviewWithRestaurantCreate = Depends(parse_review_form),
+    files: Optional[List[UploadFile]] = File(default=[]),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    # 1. JSON 파싱
-    try:
-        parsed_data = schemas.ReviewWithRestaurantCreate.model_validate_json(
-            request_data
-        )
-    except Exception as e:
-        raise HTTPException(status_code=422, detail=f"JSON 파싱 에러: {e}")
+    """
+    식당 등록과 리뷰를 같이 작성합니다.
 
-    # 2. 이미지 업로드 진행
-    uploaded_urls = []  # 성공한 URL들을 담아둘 리스트
+    - restaurant_id로 기존 식당을 지정합니다
+    - 이미지는 여러 장 업로드 가능합니다 (이미지 필수 X)
+    """
+    uploaded_urls = []
     try:
-        # --- [A] 업로드 ---
-        for file in files:
-            if file.size > 0 and file.content_type.startswith("image/"):
-                url = await upload_image_to_supabase(file)
-                uploaded_urls.append(url)
+        # ✅ 유효한 이미지 파일만 필터링
+        valid_files = [
+            f
+            for f in (files or [])
+            if isinstance(f, UploadFile)
+            and f.filename
+            and f.size > 0
+            and f.content_type.startswith("image/")
+        ]
 
-        # --- [B] 서비스 호출 (DB 저장) ---
-        # 여기서 에러가 나면 -> except 블록으로 점프!
+        for file in valid_files:
+            url = await upload_image_to_supabase(file)
+            uploaded_urls.append(url)
+
         return await service.create_review_with_restaurant(
             db=db,
             user_id=current_user.id,
@@ -58,14 +51,58 @@ async def create_review_and_restaurant(
         )
 
     except Exception as e:
-        # 🚨 [C] 에러 발생 시 롤백 (보상 트랜잭션)
-        # 이미 업로드된 파일이 있다면 지워버림
         if uploaded_urls:
             print(f"🔥 에러 발생으로 인한 이미지 롤백 시작 ({len(uploaded_urls)}개)")
             for url in uploaded_urls:
                 await delete_image_from_supabase(url)
+        raise e
 
-        # 에러를 다시 던져서 클라이언트에게 500 에러를 알림
+
+@router.post("", response_model=schemas.ReviewResponse)
+async def create_review(
+    review_data: schemas.ReviewCreate = Depends(parse_review_only_form),
+    files: Optional[List[UploadFile]] = File(default=[]),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    기존 식당에 리뷰만 작성합니다.
+
+    - restaurant_id로 기존 식당을 지정합니다
+    - 이미지는 여러 장 업로드 가능합니다 (이미지 필수 X)
+    """
+    uploaded_urls = []
+    try:
+        # 유효한 이미지 파일만 필터링
+        valid_files = [
+            f
+            for f in (files or [])
+            if isinstance(f, UploadFile)
+            and f.filename
+            and f.size > 0
+            and f.content_type.startswith("image/")
+        ]
+
+        for file in valid_files:
+            url = await upload_image_to_supabase(file)
+            uploaded_urls.append(url)
+
+        # 리뷰 생성
+        return await service.create_review_only(
+            db=db,
+            user_id=current_user.id,
+            restaurant_id=review_data.restaurant_id,
+            rating=review_data.rating,
+            content=review_data.content,
+            images=uploaded_urls,
+        )
+
+    except Exception as e:
+        # 에러 발생 시 업로드된 이미지 삭제
+        if uploaded_urls:
+            print(f"🔥 에러 발생으로 인한 이미지 롤백 시작 ({len(uploaded_urls)}개)")
+            for url in uploaded_urls:
+                await delete_image_from_supabase(url)
         raise e
 
 
