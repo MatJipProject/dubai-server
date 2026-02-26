@@ -20,9 +20,9 @@ async def create_review_and_restaurant(
     current_user: User = Depends(get_current_user),
 ):
     """
-    식당 등록과 리뷰를 같이 작성합니다.
+    맛집 등록과 리뷰를 같이 작성합니다.
 
-    - restaurant_id로 기존 식당을 지정합니다
+    - restaurants/search API 기반 정보로 맛집 등록과 리뷰를 같이하는 기능입니다.
     - 이미지는 여러 장 업로드 가능합니다 (이미지 필수 X)
     """
     uploaded_urls = []
