@@ -19,6 +19,12 @@ async def create_review_and_restaurant(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    """
+    식당 등록과 리뷰를 같이 작성합니다.
+
+    - restaurant_id로 기존 식당을 지정합니다
+    - 이미지는 여러 장 업로드 가능합니다 (이미지 필수 X)
+    """
     uploaded_urls = []
     try:
         # ✅ 유효한 이미지 파일만 필터링
