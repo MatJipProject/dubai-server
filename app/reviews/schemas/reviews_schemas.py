@@ -14,6 +14,13 @@ class ReviewWithRestaurantCreate(BaseModel):
     content: str
 
 
+# [요청] 기존 식당에 리뷰만 작성
+class ReviewCreate(BaseModel):
+    restaurant_id: int
+    rating: int = Field(..., ge=1, le=5)  # 1~5점
+    content: str
+
+
 # [응답] 리뷰 조회 시 반환할 스키마
 class ReviewResponse(BaseModel):
     id: int

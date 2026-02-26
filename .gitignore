@@ -70,3 +70,7 @@ prof/*
 !.elasticbeanstalk/*.global.yml
 /htmlcov/
 /tests/htmlcov/
+
+# pycache
+*.pyc
+__pycache__/
