@@ -124,13 +124,18 @@ def create_restaurant(db: Session, item: schemas.RestaurantCreate):
         return existing_restaurant
 
     # 2. 카테고리 단순화
-    # 카카오 예시: "음식점 > 한식 > 육류,고기" -> "육류,고기"
-    # 문자열 파싱만 조금 다듬어 줍니다.
-    simple_category = item.category
+    # 카카오 예시: "음식점 > 한식 > 육류,고기" -> "한식" 추출
+    # 단일 항목("음식점")만 올 경우 "기타"로 분류
+    simple_category = "기타"  # 기본값을 '기타'로 설정
+
     if item.category:
-        parts = item.category.split(">")
-        if len(parts) > 1:
-            simple_category = parts[-1].strip()  # 맨 뒤에꺼 가져오고 공백 제거
+        # '>' 기준으로 쪼개고 앞뒤 공백 제거
+        parts = [part.strip() for part in item.category.split(">")]
+
+        # "음식점 > 한식" 처럼 2개 이상일 경우 두 번째(인덱스 1) 값을 가져옴
+        if len(parts) >= 2:
+            simple_category = parts[1]
+        # "음식점" 처럼 1개만 있을 때는 기본값인 "기타"가 그대로 유지됨
 
     # 3. 좌표 변환 (문자열 -> WGS84 Point)
     # 카카오 API는 이미 WGS84 좌표를 제공하므로 10,000,000으로 나눌 필요가 없습니다!
@@ -254,46 +259,48 @@ def get_restaurants_latest(
     """
     # 1. 최신 등록순으로 식당 조회 (평점, 리뷰수 포함)
     rows = crud.get_restaurants_by_latest(db, skip, limit, category)
-    
+
     if not rows:
         return []
-    
+
     # 2. 식당 ID 추출하여 썸네일 이미지 조회
     restaurant_ids = [row[0].id for row in rows]
-    
+
     # 3. 각 식당별 썸네일 이미지 조회 (성능 최적화를 위해 bulk 조회)
     thumbnail_data = crud.get_latest_images_for_restaurants(db, restaurant_ids, 1)
     thumbnail_map = {}
     for r_id, images in thumbnail_data:
         if images and len(images) > 0:
             thumbnail_map[r_id] = images[0]
-    
+
     # 4. 응답 데이터 조립
     result_list = []
     for row in rows:
         restaurant, avg_rating, review_count = row
-        
+
         # created_at 안전 처리
         created_at_str = None
         if restaurant.created_at:
             created_at_str = restaurant.created_at.isoformat()
-        
-        result_list.append({
-            "id": restaurant.id,
-            "name": restaurant.name,
-            "category": restaurant.category,
-            "road_address": restaurant.road_address,
-            "address": restaurant.address,
-            "phone": restaurant.phone,
-            "place_url": restaurant.place_url,
-            "latitude": restaurant.latitude,
-            "longitude": restaurant.longitude,
-            "rating": round(avg_rating, 1),
-            "review_count": review_count,
-            "created_at": created_at_str,
-            "thumbnail": thumbnail_map.get(restaurant.id)
-        })
-    
+
+        result_list.append(
+            {
+                "id": restaurant.id,
+                "name": restaurant.name,
+                "category": restaurant.category,
+                "road_address": restaurant.road_address,
+                "address": restaurant.address,
+                "phone": restaurant.phone,
+                "place_url": restaurant.place_url,
+                "latitude": restaurant.latitude,
+                "longitude": restaurant.longitude,
+                "rating": round(avg_rating, 1),
+                "review_count": review_count,
+                "created_at": created_at_str,
+                "thumbnail": thumbnail_map.get(restaurant.id),
+            }
+        )
+
     return result_list
 
 
