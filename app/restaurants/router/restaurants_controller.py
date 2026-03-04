@@ -1,7 +1,9 @@
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from app.core.database import get_db
+from app.core.security import get_current_user_optional
+from app.models.models import User
 from app.restaurants.schemas import restaurants_schemas as schemas
 from app.restaurants.service import restaurants_service as service
 
@@ -28,15 +30,19 @@ def get_categories(db: Session = Depends(get_db)):
 def get_latest_restaurants(
     skip: int = Query(0, description="건너뛸 개수 (페이징)"),
     limit: int = Query(20, description="가져올 개수 (최대 50개)"),
-    category: str = Query(None, description="카테고리 필터 (예: 한식, 중식, 일식, 양식, 카페, 치킨, 피자 등)"),
+    category: str = Query(
+        None,
+        description="카테고리 필터 (예: 한식, 중식, 일식, 양식, 카페, 치킨, 피자 등)",
+    ),
     db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user_optional),
 ):
     """
     최근 등록된 순으로 식당 목록을 조회합니다.
-    
+
     카테고리 필터링 예시:
     - 한식: /latest?category=한식
-    - 중식: /latest?category=중식  
+    - 중식: /latest?category=중식
     - 일식: /latest?category=일식
     - 양식: /latest?category=양식
     - 카페: /latest?category=카페
@@ -47,8 +53,10 @@ def get_latest_restaurants(
     """
     if limit > 50:
         limit = 50
-    
-    return service.get_restaurants_latest(db, skip=skip, limit=limit, category=category)
+    user_id = current_user.id if current_user else None
+    return service.get_restaurants_latest(
+        db, skip=skip, limit=limit, category=category, user_id=user_id
+    )
 
 
 @router.get("/nearby", response_model=List[schemas.RestaurantNearbyResponse])
@@ -57,11 +65,27 @@ def get_nearby_restaurants(
     lng: float = Query(..., description="사용자 현재 경도"),
     radius: int = Query(1000, description="검색 반경 (미터)"),
     db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user_optional),
 ):
     """
     내 주변 맛집 리스트 조회 (거리순, 별점 포함)
     """
-    return service.get_nearby_restaurants(db, lat=lat, lng=lng, radius=radius)
+    user_id = current_user.id if current_user else None
+    return service.get_nearby_restaurants(
+        db, lat=lat, lng=lng, radius=radius, user_id=user_id
+    )
+
+
+@router.get("/trending", response_model=List[schemas.RestaurantTrendingResponse])
+def get_trending_restaurants(
+    limit: int = Query(10, description="가져올 인기 식당 개수"),
+    db: Session = Depends(get_db),
+):
+    """
+    요즘 뜨는 식당 리스트 (북마크가 가장 많은 순서)
+    - 홈 화면 캐러셀(슬라이드) 용도로 사용하기 좋습니다.
+    """
+    return service.get_trending_restaurants(db=db, limit=limit)
 
 
 @router.get("/{restaurant_id}", response_model=schemas.RestaurantDetailResponse)

@@ -8,8 +8,10 @@ from sqlalchemy import (
     String,
     Text,
     Float,
+    UniqueConstraint,
     func,
 )
+from sqlalchemy.orm import relationship
 from app.core.database import Base
 from geoalchemy2 import Geometry, Geography  # PostGIS 사용을 위한 임포트
 
@@ -25,6 +27,13 @@ class User(Base):
     phone = Column(String(20), nullable=True)
     is_active = Column(Boolean, default=True)  # 계정 활성화 여부
     created_at = Column(DateTime, default=func.now())  # 작성일
+    # [추가] 유저가 삭제되면 북마크도 연쇄 삭제(cascade) 되도록 설정
+    bookmarks = relationship(
+        "Bookmark", back_populates="user", cascade="all, delete-orphan"
+    )
+    reviews = relationship(
+        "Review", back_populates="user", cascade="all, delete-orphan"
+    )
 
 
 class Restaurant(Base):
@@ -47,8 +56,16 @@ class Restaurant(Base):
     longitude = Column(Float, nullable=False)  # 경도 (x)
     # PostGIS 거리 계산용 (기존 유지)
     location = Column(Geography(geometry_type="POINT", srid=4326))
+    image_url = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())  # 작성일
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())  # 수정일
+    # [추가] 식당이 삭제되면 북마크도 연쇄 삭제되도록 설정
+    bookmarks = relationship(
+        "Bookmark", back_populates="restaurant", cascade="all, delete-orphan"
+    )
+    reviews = relationship(
+        "Review", back_populates="restaurant", cascade="all, delete-orphan"
+    )
 
 
 class Review(Base):
@@ -62,3 +79,37 @@ class Review(Base):
     images = Column(JSON)  # 이미지 URL 목록
     created_at = Column(DateTime, default=func.now())  # 작성일
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())  # 수정일
+
+    # 👇👇 [이 두 줄을 추가해 주세요!] 👇👇
+    user = relationship("User", back_populates="reviews")
+    restaurant = relationship("Restaurant", back_populates="reviews")
+
+
+class Bookmark(Base):
+    __tablename__ = "bookmarks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    # 어떤 유저가
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    # 어떤 식당을
+    restaurant_id = Column(
+        Integer,
+        ForeignKey("restaurants.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    # 언제 찜했는지
+    created_at = Column(DateTime, default=func.now())
+
+    # 한 유저가 같은 식당을 두 번 찜할 수 없도록 중복 방지 제약조건
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id", "restaurant_id", name="uq_user_restaurant_bookmark"
+        ),
+    )
+
+    # 연결 설정
+    user = relationship("User", back_populates="bookmarks")
+    restaurant = relationship("Restaurant", back_populates="bookmarks")

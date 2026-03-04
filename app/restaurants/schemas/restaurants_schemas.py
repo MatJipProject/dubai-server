@@ -19,11 +19,15 @@ class RestaurantCreate(BaseModel):
 
     road_address: Optional[str] = None
     address: Optional[str] = None
-
+    # 👇 [추가]
+    image_url: Optional[str] = None
     # [변경] mapx, mapy (String) -> longitude, latitude (Float)
     # 카카오 API는 위경도 좌표를 바로 줍니다.
     latitude: float  # 위도 (y)
     longitude: float  # 경도 (x)
+
+    class Config:
+        from_attributes = True
 
 
 # ==========================================
@@ -47,6 +51,8 @@ class RestaurantBase(BaseModel):
 
     latitude: float
     longitude: float
+
+    image_url: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -99,6 +105,8 @@ class RestaurantNearbyResponse(BaseModel):
     distance: float
     rating: float
     review_count: int
+    image_url: Optional[str] = None  # 👈 대표 이미지 1장 추가 (없으면 null)
+    is_bookmarked: bool = False
 
     # [이미지 & 프리뷰]
     images: List[str] = []
@@ -113,28 +121,43 @@ class RestaurantListResponse(BaseModel):
     id: int
     name: str
     category: Optional[str] = None
-    
+
     # [주소 정보]
     road_address: Optional[str] = None
     address: Optional[str] = None
-    
+
     # [상세 정보]
     phone: Optional[str] = None
     place_url: Optional[str] = None
-    
+
     # [좌표]
     latitude: float
     longitude: float
-    
+
     # [통계]
     rating: float = 0.0
     review_count: int = 0
-    
+
     # [등록일]
     created_at: Optional[str] = None  # ISO 형식 문자열 (optional)
-    
+
     # [이미지 썸네일]
     thumbnail: Optional[str] = None
+
+    # 👇 북마크 여부 추가 (기본값은 무조건 False)
+    is_bookmarked: bool = False
+
+    class Config:
+        from_attributes = True
+
+
+# 기존 RestaurantBase를 상속받고 북마크 개수만 추가합니다.
+class RestaurantTrendingResponse(RestaurantBase):
+    bookmark_count: int = 0
+    image_url: Optional[str] = None  # 👈 대표 이미지 1장 추가 (없으면 null)
+    # (선택) 만약 별점과 리뷰 수도 필요하면 아래 주석을 해제하세요.
+    # rating: float = 0.0
+    # review_count: int = 0
 
     class Config:
         from_attributes = True

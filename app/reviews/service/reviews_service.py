@@ -5,16 +5,16 @@ from app.restaurants.service import (
     restaurants_service as restaurant_service,
 )  # 식당 서비스 재사용
 from app.restaurants.schemas import restaurants_schemas as restaurant_schemas
-from typing import List
+from typing import List, Optional
 
 
 async def create_review_with_restaurant(
     db: Session,
     user_id: int,
     restaurant_create: restaurant_schemas.RestaurantCreate,
-    rating: int,
-    content: str,
-    images: List[str],
+    rating: Optional[int] = None,
+    content: Optional[str] = None,
+    images: List[str] = [],
 ):
     """
     식당 등록(또는 조회) + 리뷰 작성을 한 번에 처리
@@ -27,25 +27,35 @@ async def create_review_with_restaurant(
     restaurant = restaurant_service.create_restaurant(db, restaurant_create)
 
     # -------------------------------------------------------
-    # Step 2. 리뷰 작성
+    # Step 2. 리뷰 작성 (데이터가 있을 때만!)
     # -------------------------------------------------------
-    new_review = crud.create_review(
-        db=db,
-        user_id=user_id,
-        restaurant_id=restaurant.id,  # 위에서 받은 ID 사용
-        rating=rating,
-        content=content,
-        images=images,
-    )
+    new_review = None
 
-    return new_review
+    # 별점(rating)이 들어왔다면 리뷰를 작성하는 것으로 간주합니다.
+    if rating is not None:
+        new_review = crud.create_review(
+            db=db,
+            user_id=user_id,
+            restaurant_id=restaurant.id,
+            rating=rating,
+            content=content or "",  # 내용이 없으면 빈 문자열 처리
+            images=images,
+        )
+
+    # -------------------------------------------------------
+    # Step 3. 결과 반환 (식당 정보 + 작성된 리뷰 정보)
+    # -------------------------------------------------------
+    return {
+        "message": "등록이 완료되었습니다.",
+        "restaurant": restaurant,
+        "review": new_review,  # 리뷰 안 썼으면 None이 들어감
+    }
 
 
 def get_reviews_by_restaurant(
     db: Session, restaurant_id: int, skip: int = 0, limit: int = 10
 ):
     return crud.get_reviews_by_restaurant(db, restaurant_id, skip, limit)
-
 
 
 async def create_review_only(

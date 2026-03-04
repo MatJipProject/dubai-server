@@ -12,7 +12,7 @@ from app.models.models import User
 router = APIRouter()
 
 
-@router.post("/register", response_model=schemas.ReviewResponse)
+@router.post("/register", response_model=schemas.RegisterResponse)
 async def create_review_and_restaurant(
     parsed_data: schemas.ReviewWithRestaurantCreate = Depends(parse_review_form),
     files: Optional[List[UploadFile]] = File(default=[]),
@@ -26,22 +26,27 @@ async def create_review_and_restaurant(
     - 이미지는 여러 장 업로드 가능합니다 (이미지 필수 X)
     """
     uploaded_urls = []
+    # 💡 리뷰 작성 여부 판단 (별점이 있는지 확인)
+    is_review_included = parsed_data.rating is not None
+
     try:
-        # ✅ 유효한 이미지 파일만 필터링
-        valid_files = [
-            f
-            for f in (files or [])
-            if isinstance(f, UploadFile)
-            and f.filename
-            and f.size > 0
-            and f.content_type.startswith("image/")
-        ]
+        # ✅ 리뷰가 포함된 경우에만 이미지 필터링 및 업로드 진행
+        if is_review_included:
+            valid_files = [
+                f
+                for f in (files or [])
+                if isinstance(f, UploadFile)
+                and f.filename
+                and f.size > 0
+                and f.content_type.startswith("image/")
+            ]
 
-        for file in valid_files:
-            url = await upload_image_to_supabase(file)
-            uploaded_urls.append(url)
+            for file in valid_files:
+                url = await upload_image_to_supabase(file)
+                uploaded_urls.append(url)
 
-        return await service.create_review_with_restaurant(
+        # 서비스 호출 (리뷰 유무 상관없이 호출)
+        result = await service.create_review_with_restaurant(
             db=db,
             user_id=current_user.id,
             restaurant_create=parsed_data.restaurant,
@@ -49,6 +54,7 @@ async def create_review_and_restaurant(
             content=parsed_data.content,
             images=uploaded_urls,
         )
+        return result
 
     except Exception as e:
         if uploaded_urls:
