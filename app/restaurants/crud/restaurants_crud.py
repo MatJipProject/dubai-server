@@ -1,6 +1,6 @@
 from sqlalchemy import func
 from sqlalchemy.orm import Session
-from app.models.models import Restaurant, Review
+from app.models.models import Restaurant, Review, Bookmark
 from geoalchemy2.elements import WKTElement
 from sqlalchemy import func, cast  # cast 추가
 from geoalchemy2 import Geography  # Geography 추가
@@ -25,6 +25,7 @@ def create_restaurant(
     lat: float,
     lng: float,
     location_wkt: str,
+    image_url: str = None,
 ):
     db_item = Restaurant(
         kakao_place_id=kakao_place_id,
@@ -37,6 +38,7 @@ def create_restaurant(
         latitude=lat,
         longitude=lng,
         location=WKTElement(location_wkt, srid=4326),
+        image_url=image_url,
     )
     db.add(db_item)
     db.commit()
@@ -176,23 +178,19 @@ def get_restaurants_by_latest(
     평점과 리뷰 수도 함께 반환합니다.
     카테고리 필터링 옵션 추가.
     """
-    query = (
-        db.query(
-            Restaurant,
-            func.coalesce(func.avg(Review.rating), 0.0).label("avg_rating"),
-            func.count(Review.id).label("review_count"),
-        )
-        .outerjoin(Review, Restaurant.id == Review.restaurant_id)
-    )
-    
+    query = db.query(
+        Restaurant,
+        func.coalesce(func.avg(Review.rating), 0.0).label("avg_rating"),
+        func.count(Review.id).label("review_count"),
+    ).outerjoin(Review, Restaurant.id == Review.restaurant_id)
+
     # 카테고리 필터링 (카카오맵 카테고리 기준)
     if category:
         # 카테고리가 포함된 식당 필터링 (부분 일치)
         query = query.filter(Restaurant.category.ilike(f"%{category}%"))
-    
+
     return (
-        query
-        .group_by(Restaurant.id)
+        query.group_by(Restaurant.id)
         .order_by(desc(Restaurant.created_at))  # 최신 등록순
         .offset(skip)
         .limit(limit)
@@ -213,7 +211,7 @@ def get_restaurant_thumbnail(db: Session, restaurant_id: int) -> str:
         .order_by(desc(Review.created_at))
         .first()
     )
-    
+
     if review and review.images and len(review.images) > 0:
         return review.images[0]
     return None
@@ -230,7 +228,7 @@ def get_available_categories(db: Session):
         .distinct()
         .all()
     )
-    
+
     # 카테고리를 파싱하여 주요 카테고리만 추출
     category_set = set()
     for (category,) in categories:
@@ -240,5 +238,29 @@ def get_available_categories(db: Session):
             for part in parts:
                 if part and part not in ["음식점", "식당"]:  # 일반적인 단어 제외
                     category_set.add(part)
-    
+
     return sorted(list(category_set))
+
+
+def get_trending_restaurants(db: Session, limit: int = 10):
+    """
+    북마크(찜) 개수가 가장 많은 순서대로 식당을 가져옵니다.
+    """
+    # Query: 식당 정보(Restaurant)와 북마크 갯수(Count)를 같이 조회
+    results = (
+        db.query(Restaurant, func.count(Bookmark.id).label("bookmark_count"))
+        .outerjoin(Bookmark, Restaurant.id == Bookmark.restaurant_id)
+        .group_by(Restaurant.id)
+        .order_by(func.count(Bookmark.id).desc())  # 내림차순 정렬
+        .limit(limit)
+        .all()
+    )
+
+    # 응답 스키마(RestaurantTrendingResponse)에 맞게 데이터 조립
+    trending_list = []
+    for restaurant, b_count in results:
+        # SQLAlchemy 모델 객체에 동적으로 속성을 추가해서 넘겨줍니다.
+        restaurant.bookmark_count = b_count
+        trending_list.append(restaurant)
+
+    return trending_list

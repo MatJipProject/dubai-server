@@ -10,8 +10,8 @@ class ReviewWithRestaurantCreate(BaseModel):
     restaurant: restaurants_schemas.RestaurantCreate
 
     # 2. 리뷰 정보
-    rating: int = Field(..., ge=1, le=5)  # 1~5점
-    content: str
+    rating: Optional[int] = Field(None, ge=1, le=5)  # 1~5점
+    content: Optional[str] = None
 
 
 # [요청] 기존 식당에 리뷰만 작성
@@ -27,9 +27,20 @@ class ReviewResponse(BaseModel):
     user_id: int
     restaurant_id: int
     rating: int
-    content: str
+    content: Optional[str] = None
     images: List[str] = []
     created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class RegisterResponse(BaseModel):
+    message: str
+    restaurant: (
+        restaurants_schemas.RestaurantBase
+    )  # 식당 정보 (이름은 프로젝트에 맞게 확인해주세요)
+    review: Optional[ReviewResponse] = None  # 리뷰는 안 썼을 수도 있으니 Optional!
 
     class Config:
         from_attributes = True

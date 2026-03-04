@@ -15,9 +15,10 @@ async def parse_review_form(
     address: Optional[str] = Form(None, description="지번 주소"),
     latitude: float = Form(..., description="위도"),
     longitude: float = Form(..., description="경도"),
+    image_url: Optional[str] = Form(None, description="이미지 URL"),
     # Review 필드들
-    rating: int = Form(..., ge=1, le=5, description="평점 (1~5)"),
-    content: str = Form(..., description="리뷰 내용"),
+    rating: Optional[int] = Form(None, ge=1, le=5, description="평점 (1~5)"),
+    content: Optional[str] = Form(None, description="리뷰 내용"),
 ) -> schemas.ReviewWithRestaurantCreate:
     """
     Form 데이터를 ReviewWithRestaurantCreate 스키마로 변환
@@ -32,8 +33,9 @@ async def parse_review_form(
         address=address,
         latitude=latitude,
         longitude=longitude,
+        image_url=image_url,
     )
-    
+
     return schemas.ReviewWithRestaurantCreate(
         restaurant=restaurant,
         rating=rating,
