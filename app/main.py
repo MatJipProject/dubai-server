@@ -7,6 +7,7 @@ import uvicorn
 from app.restaurants.router import restaurants_controller
 from app.users.router import auth_controller
 from app.reviews.router import reviews_controller
+from app.bookmark.router import bookmark_controller
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -19,6 +20,9 @@ app.include_router(
 app.include_router(auth_controller.router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(
     reviews_controller.router, prefix="/api/v1/reviews", tags=["reviews"]
+)
+app.include_router(
+    bookmark_controller.router, prefix="/api/v1/bookmark", tags=["bookmark"]
 )
 
 app.add_middleware(

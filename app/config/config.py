@@ -28,6 +28,8 @@ class Settings(BaseSettings):
     SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
     SUPABASE_KEY: str = os.getenv("SUPABASE_KEY", "")
     SUPABASE_BUCKET: str = os.getenv("SUPABASE_BUCKET", "reviews")
+    NAVER_CLIENT_ID: str = os.getenv("NAVER_CLIENT_ID")
+    NAVER_CLIENT_SECRET: str = os.getenv("NAVER_CLIENT_SECRET")
 
 
 settings = Settings()
