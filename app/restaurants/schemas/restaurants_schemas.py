@@ -106,6 +106,7 @@ class RestaurantNearbyResponse(BaseModel):
     rating: float
     review_count: int
     image_url: Optional[str] = None  # 👈 대표 이미지 1장 추가 (없으면 null)
+    is_bookmarked: bool = False
 
     # [이미지 & 프리뷰]
     images: List[str] = []
@@ -142,6 +143,9 @@ class RestaurantListResponse(BaseModel):
 
     # [이미지 썸네일]
     thumbnail: Optional[str] = None
+
+    # 👇 북마크 여부 추가 (기본값은 무조건 False)
+    is_bookmarked: bool = False
 
     class Config:
         from_attributes = True

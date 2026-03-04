@@ -1,7 +1,9 @@
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from app.core.database import get_db
+from app.core.security import get_current_user_optional
+from app.models.models import User
 from app.restaurants.schemas import restaurants_schemas as schemas
 from app.restaurants.service import restaurants_service as service
 
@@ -33,6 +35,7 @@ def get_latest_restaurants(
         description="카테고리 필터 (예: 한식, 중식, 일식, 양식, 카페, 치킨, 피자 등)",
     ),
     db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user_optional),
 ):
     """
     최근 등록된 순으로 식당 목록을 조회합니다.
@@ -50,8 +53,10 @@ def get_latest_restaurants(
     """
     if limit > 50:
         limit = 50
-
-    return service.get_restaurants_latest(db, skip=skip, limit=limit, category=category)
+    user_id = current_user.id if current_user else None
+    return service.get_restaurants_latest(
+        db, skip=skip, limit=limit, category=category, user_id=user_id
+    )
 
 
 @router.get("/nearby", response_model=List[schemas.RestaurantNearbyResponse])
@@ -60,11 +65,15 @@ def get_nearby_restaurants(
     lng: float = Query(..., description="사용자 현재 경도"),
     radius: int = Query(1000, description="검색 반경 (미터)"),
     db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user_optional),
 ):
     """
     내 주변 맛집 리스트 조회 (거리순, 별점 포함)
     """
-    return service.get_nearby_restaurants(db, lat=lat, lng=lng, radius=radius)
+    user_id = current_user.id if current_user else None
+    return service.get_nearby_restaurants(
+        db, lat=lat, lng=lng, radius=radius, user_id=user_id
+    )
 
 
 @router.get("/trending", response_model=List[schemas.RestaurantTrendingResponse])

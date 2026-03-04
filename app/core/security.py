@@ -1,3 +1,5 @@
+from typing import Optional
+
 from fastapi import Depends, HTTPException
 from jose import ExpiredSignatureError, JWTError, jwt
 from passlib.context import CryptContext
@@ -12,6 +14,9 @@ from datetime import datetime, timedelta, timezone
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 ALGORITHM = "HS256"
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/signin")
+oauth2_scheme_optional = OAuth2PasswordBearer(
+    tokenUrl="api/v1/auth/signin", auto_error=False
+)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -68,3 +73,37 @@ def get_current_user(
         return user
     except JWTError as e:
         raise HTTPException(status_code=401, detail="Could not validate credentials")
+
+
+def get_current_user_optional(
+    token: Optional[str] = Depends(oauth2_scheme_optional),
+    db: Session = Depends(get_db),
+):
+    """
+    선택적 유저 인증 의존성 함수
+    - 로그인한 유저: 정상적으로 User 객체 반환
+    - 비로그인 유저 또는 토큰 만료: 에러 없이 그냥 None 반환
+    """
+    # 1. 헤더에 토큰이 아예 없으면 조용히 None을 반환하고 통과시킵니다.
+    if not token:
+        return None
+
+    try:
+        # 2. 토큰 해독
+        email = decode_token(token)
+        if not email:
+            return None
+
+        # 3. DB에서 유저 조회
+        user = crud.get_user_by_email(db, email=email)
+
+        # 4. 유저가 없거나 탈퇴(is_active=False) 상태여도 에러 내지 않고 None 반환
+        if user is None or user.is_active is False:
+            return None
+
+        return user
+
+    except JWTError:
+        # 🚨 [핵심 2] 토큰이 만료되었거나 조작되었더라도 401 에러를 던지지 않습니다!
+        # 그냥 "비로그인 상태"로 취급해서 통과시킵니다.
+        return None

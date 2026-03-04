@@ -264,3 +264,26 @@ def get_trending_restaurants(db: Session, limit: int = 10):
         trending_list.append(restaurant)
 
     return trending_list
+
+
+def get_bookmarked_restaurant_ids(
+    db: Session, user_id: int, restaurant_ids: list[int]
+) -> set[int]:
+    """
+    주어진 식당 ID 리스트 중, 특정 유저가 북마크한 식당 ID만 추출하여 Set으로 반환합니다.
+    """
+    if not restaurant_ids or not user_id:
+        return set()
+
+    # SELECT restaurant_id FROM bookmarks WHERE user_id = ? AND restaurant_id IN (?, ?, ...)
+    bookmarks = (
+        db.query(Bookmark.restaurant_id)
+        .filter(
+            Bookmark.user_id == user_id,
+            Bookmark.restaurant_id.in_(restaurant_ids),
+        )
+        .all()
+    )
+
+    # 빠르게 검색할 수 있도록 list 대신 set 형태로 반환 (예: {1, 4})
+    return {b[0] for b in bookmarks}

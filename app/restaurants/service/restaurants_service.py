@@ -210,7 +210,13 @@ def create_restaurant(db: Session, item: schemas.RestaurantCreate):
     )
 
 
-def get_nearby_restaurants(db: Session, lat: float, lng: float, radius: int):
+def get_nearby_restaurants(
+    db: Session,
+    lat: float,
+    lng: float,
+    radius: int,
+    user_id: int = None,
+):
     # 1. 주변 식당 조회 (쿼리 1번)
     rows = crud.get_nearby_restaurants_query(db, lat, lng, radius)
 
@@ -220,28 +226,31 @@ def get_nearby_restaurants(db: Session, lat: float, lng: float, radius: int):
     # 2. 식당 ID 추출
     restaurant_ids = [row[0].id for row in rows]
 
+    # 🌟 [추가] 2-5. 북마크 여부 묶음 조회 (쿼리 1번 추가)
+    bookmarked_ids = set()
+    if user_id:
+        # 이전에 만들어둔 CRUD 함수 재사용!
+        bookmarked_ids = crud.get_bookmarked_restaurant_ids(db, user_id, restaurant_ids)
+
     # 3. 리뷰 데이터 Bulk 조회 (쿼리 2번 - 이미지 + 텍스트)
+    # (주의: crud 파일 임포트 경로에 맞게 reviews_crud 사용)
     reviews_data = reviews_crud.get_latest_reviews_for_restaurants(db, restaurant_ids)
 
     # 4. 데이터 매핑 (Dictionary 구조 잡기)
-    # 목표 구조: { 식당ID : {"images": ["url1", "url2"], "preview": "맛있어요..."} }
     extra_data = {rid: {"images": [], "preview": None} for rid in restaurant_ids}
 
     for r_id, r_imgs, r_content in reviews_data:
         target = extra_data[r_id]
 
         # (A) 이미지 수집 (최대 2개)
-        # r_imgs는 ["url1", "url2"] 형태의 리스트이거나 None
         if len(target["images"]) < 2 and r_imgs:
             for img in r_imgs:
                 if len(target["images"]) >= 2:
                     break
                 target["images"].append(img)
 
-        # (B) 리뷰 프리뷰 설정 (가장 최신 것 1개만 설정하고 끝)
-        # 쿼리가 이미 최신순 정렬되어 있으므로, 먼저 잡히는 게 최신임.
+        # (B) 리뷰 프리뷰 설정 (가장 최신 것 1개만)
         if target["preview"] is None and r_content:
-            # 텍스트가 길면 50자에서 자르고 "..." 붙이기
             text = r_content
             if len(text) > 50:
                 text = text[:50] + "..."
@@ -251,8 +260,6 @@ def get_nearby_restaurants(db: Session, lat: float, lng: float, radius: int):
     result_list = []
     for row in rows:
         restaurant, distance, avg_rating, count = row
-
-        # 미리 준비해둔 추가 데이터 가져오기
         extra = extra_data.get(restaurant.id, {"images": [], "preview": None})
 
         result_list.append(
@@ -271,11 +278,13 @@ def get_nearby_restaurants(db: Session, lat: float, lng: float, radius: int):
                 "image_url": restaurant.image_url,
                 # [통계]
                 "distance": round(distance, 1),
-                "rating": round(avg_rating, 1),
-                "review_count": count,
+                "rating": round(avg_rating, 1) if avg_rating else 0.0,
+                "review_count": count or 0,
                 # [UX 데이터]
                 "images": extra["images"],
                 "review_preview": extra["preview"],
+                # 🌟 [추가] 북마크 여부 포함 (True / False)
+                "is_bookmarked": restaurant.id in bookmarked_ids,
             }
         )
 
@@ -304,7 +313,11 @@ def get_restaurant_detail(
 
 
 def get_restaurants_latest(
-    db: Session, skip: int = 0, limit: int = 20, category: str = None
+    db: Session,
+    skip: int = 0,
+    limit: int = 20,
+    category: str = None,
+    user_id: int = None,
 ) -> list[schemas.RestaurantListResponse]:
     """
     최근 등록된 순으로 식당 목록을 조회합니다.
@@ -316,11 +329,17 @@ def get_restaurants_latest(
 
     if not rows:
         return []
+    # 식당 ID 목록 추출
+    restaurant_ids = [row[0].id for row in rows]
+    # 🌟 1. [북마크 최적화] 이 유저가 찜한 식당 ID만 한 번에 가져오기
+    bookmarked_ids = set()
+    if user_id:
+        bookmarked_ids = crud.get_bookmarked_restaurant_ids(db, user_id, restaurant_ids)
 
-    # 2. [최적화 포인트] 식당 테이블에 image_url이 '없는' 식당의 ID만 골라냅니다.
-    missing_image_ids = [row[0].id for row in rows if not row[0].image_url]
-
-    # 3. 사진이 없는 식당들에 대해서만 리뷰 사진을 조회 (벌크 쿼리 최소화)
+    # 2. [이미지 최적화] 사진 없는 식당들 썸네일 가져오기 (이전과 동일)
+    missing_image_ids = [
+        r_id for r_id, row in zip(restaurant_ids, rows) if not row[0].image_url
+    ]
     thumbnail_map = {}
     if missing_image_ids:
         thumbnail_data = crud.get_latest_images_for_restaurants(
@@ -330,7 +349,7 @@ def get_restaurants_latest(
             if images and len(images) > 0:
                 thumbnail_map[r_id] = images[0]
 
-    # 4. 응답 데이터 조립
+    # 3. 응답 데이터 조립
     result_list = []
     for row in rows:
         restaurant, avg_rating, review_count = row
@@ -358,6 +377,8 @@ def get_restaurants_latest(
                 "review_count": review_count or 0,
                 "created_at": created_at_str,
                 "thumbnail": final_thumbnail,
+                # 🌟 핵심: 현재 식당 ID가 북마크된 ID Set에 들어있는지 확인 (True/False)
+                "is_bookmarked": restaurant.id in bookmarked_ids,
             }
         )
 
