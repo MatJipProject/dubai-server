@@ -3,16 +3,20 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pathlib import Path
 import uvicorn
+from app.logging import logger
 
 from app.restaurants.router import restaurants_controller
 from app.users.router import auth_controller
 from app.reviews.router import reviews_controller
 from app.bookmark.router import bookmark_controller
+import app.logging_middleware as logging_middleware
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+logger = logger
 
 app = FastAPI(title="맛집 API 서버", version="0.0.1")
+app.middleware("http")(logging_middleware.log_requests)
 
 app.include_router(
     restaurants_controller.router, prefix="/api/v1/restaurants", tags=["restaurants"]
