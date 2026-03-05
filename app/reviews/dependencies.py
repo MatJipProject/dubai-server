@@ -1,46 +1,30 @@
 from typing import Optional
-from fastapi import Form
+from fastapi import Form, HTTPException
+from pydantic import ValidationError
 from app.reviews.schemas import reviews_schemas as schemas
 from app.restaurants.schemas import restaurants_schemas
+import json
 
 
-async def parse_review_form(
-    # Restaurant 필드들
-    kakao_place_id: str = Form(..., description="카카오 장소 ID"),
-    name: str = Form(..., description="식당 이름"),
-    category: Optional[str] = Form(None, description="카테고리"),
-    phone: Optional[str] = Form(None, description="전화번호"),
-    place_url: Optional[str] = Form(None, description="카카오맵 링크"),
-    road_address: Optional[str] = Form(None, description="도로명 주소"),
-    address: Optional[str] = Form(None, description="지번 주소"),
-    latitude: float = Form(..., description="위도"),
-    longitude: float = Form(..., description="경도"),
-    image_url: Optional[str] = Form(None, description="이미지 URL"),
-    # Review 필드들
-    rating: Optional[int] = Form(None, ge=1, le=5, description="평점 (1~5)"),
-    content: Optional[str] = Form(None, description="리뷰 내용"),
+def parse_review_form(
+    request_data: str = Form(..., description="JSON 형식의 식당 및 리뷰 데이터 문자열")
 ) -> schemas.ReviewWithRestaurantCreate:
     """
-    Form 데이터를 ReviewWithRestaurantCreate 스키마로 변환
+    프론트엔드에서 'request_data'라는 폼 필드에 담아 보낸 JSON 문자열을 파싱합니다.
     """
-    restaurant = restaurants_schemas.RestaurantCreate(
-        kakao_place_id=kakao_place_id,
-        name=name,
-        category=category,
-        phone=phone,
-        place_url=place_url,
-        road_address=road_address,
-        address=address,
-        latitude=latitude,
-        longitude=longitude,
-        image_url=image_url,
-    )
+    try:
+        # 1. 문자열을 Python 딕셔너리로 변환
+        parsed_dict = json.loads(request_data)
 
-    return schemas.ReviewWithRestaurantCreate(
-        restaurant=restaurant,
-        rating=rating,
-        content=content,
-    )
+        # 2. Pydantic 스키마를 이용해 데이터 검증 및 객체 생성
+        # ReviewWithRestaurantCreate 스키마 구조에 맞게 변환됩니다.
+        return schemas.ReviewWithRestaurantCreate(**parsed_dict)
+
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=422, detail="유효한 JSON 형식이 아닙니다.")
+    except ValidationError as e:
+        # Pydantic 검증 실패 시 에러 반환
+        raise HTTPException(status_code=422, detail=e.errors())
 
 
 async def parse_review_only_form(
