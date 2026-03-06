@@ -1,3 +1,6 @@
+from datetime import datetime, timedelta
+
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from app.reviews.schemas import reviews_schemas as schemas
 from app.reviews.crud import reviews_crud as crud
@@ -33,6 +36,22 @@ async def create_review_with_restaurant(
 
     # 별점(rating)이 들어왔다면 리뷰를 작성하는 것으로 간주합니다.
     if rating is not None:
+        last_review = crud.get_latest_review_by_user_and_restaurant(
+            db, user_id, restaurant.id
+        )
+
+        # 🌟 2. 서비스 계층은 비즈니스 로직(검증)만 담당!
+        if last_review:
+            # (UTC 시간 기준 방어 로직 예시 - DB 설정에 따라 timezone 고려 필요)
+            # 현재는 naive datetime을 쓴다고 가정
+            time_diff = datetime.now() - last_review.created_at
+
+            if time_diff < timedelta(days=1):
+                raise HTTPException(
+                    status_code=400,
+                    detail="동일한 식당에는 24시간에 한 번만 리뷰를 남길 수 있습니다.",
+                )
+
         new_review = crud.create_review(
             db=db,
             user_id=user_id,
@@ -69,6 +88,23 @@ async def create_review_only(
     """
     기존 식당에 리뷰만 작성
     """
+    # 1. 방금 만든 CRUD 함수 재사용! (가장 최근 리뷰 조회)
+    last_review = crud.get_latest_review_by_user_and_restaurant(
+        db=db, user_id=user_id, restaurant_id=restaurant_id
+    )
+
+    # 2. 비즈니스 로직: 24시간이 지났는지 검증
+    if last_review:
+        # 주의: DB의 created_at과 서버의 datetime.now()의 타임존(UTC/KST)이 같아야 합니다.
+        time_diff = datetime.now() - last_review.created_at
+
+        if time_diff < timedelta(days=1):
+            raise HTTPException(
+                status_code=400,
+                detail="동일한 식당에는 24시간에 한 번만 리뷰를 남길 수 있습니다.",
+            )
+
+    # 3. 검증 통과 시 정상적으로 리뷰 생성
     return crud.create_review(
         db=db,
         user_id=user_id,
