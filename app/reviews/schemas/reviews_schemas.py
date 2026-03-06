@@ -21,6 +21,15 @@ class ReviewCreate(BaseModel):
     content: str
 
 
+# 🌟 1. 리뷰 작성자 정보를 담을 미니 스키마 추가
+class ReviewUser(BaseModel):
+    nickname: str
+    # profile_image: Optional[str] = None # 프사 컬럼
+
+    class Config:
+        from_attributes = True
+
+
 # [응답] 리뷰 조회 시 반환할 스키마
 class ReviewResponse(BaseModel):
     id: int
@@ -30,6 +39,8 @@ class ReviewResponse(BaseModel):
     content: Optional[str] = None
     images: List[str] = []
     created_at: datetime
+
+    user: Optional[ReviewUser] = None
 
     class Config:
         from_attributes = True
