@@ -1,5 +1,5 @@
 from sqlalchemy import desc, func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from app.models.models import Review
 
 
@@ -66,9 +66,25 @@ def get_reviews_by_restaurant(
 ):
     return (
         db.query(Review)
+        # 🌟 [핵심] 리뷰를 가져올 때 Review.user 정보도 JOIN해서 한 번에 가져옵니다 (N+1 방지)
+        .options(joinedload(Review.user))
         .filter(Review.restaurant_id == restaurant_id)
-        .order_by(desc(Review.created_at))
+        .order_by(Review.created_at.desc())  # 최신순 정렬
         .offset(skip)
         .limit(limit)
         .all()
+    )
+
+
+def get_latest_review_by_user_and_restaurant(
+    db: Session, user_id: int, restaurant_id: int
+):
+    """
+    특정 유저가 특정 식당에 작성한 가장 최근 리뷰 1건을 조회합니다.
+    """
+    return (
+        db.query(Review)
+        .filter(Review.user_id == user_id, Review.restaurant_id == restaurant_id)
+        .order_by(Review.created_at.desc())
+        .first()
     )
