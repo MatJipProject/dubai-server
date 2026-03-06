@@ -74,3 +74,17 @@ def get_reviews_by_restaurant(
         .limit(limit)
         .all()
     )
+
+
+def get_latest_review_by_user_and_restaurant(
+    db: Session, user_id: int, restaurant_id: int
+):
+    """
+    특정 유저가 특정 식당에 작성한 가장 최근 리뷰 1건을 조회합니다.
+    """
+    return (
+        db.query(Review)
+        .filter(Review.user_id == user_id, Review.restaurant_id == restaurant_id)
+        .order_by(Review.created_at.desc())
+        .first()
+    )
