@@ -1,5 +1,5 @@
 from sqlalchemy import desc, func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from app.models.models import Review
 
 
@@ -66,8 +66,10 @@ def get_reviews_by_restaurant(
 ):
     return (
         db.query(Review)
+        # 🌟 [핵심] 리뷰를 가져올 때 Review.user 정보도 JOIN해서 한 번에 가져옵니다 (N+1 방지)
+        .options(joinedload(Review.user))
         .filter(Review.restaurant_id == restaurant_id)
-        .order_by(desc(Review.created_at))
+        .order_by(Review.created_at.desc())  # 최신순 정렬
         .offset(skip)
         .limit(limit)
         .all()
